@@ -1,58 +1,66 @@
 #include <Novice.h>
-#include <cmath>  // sqrtf を使うため
+#include <cmath>  
 
 const char kWindowTitle[] = "GC2D_02_アリミズ_ユウタ_タイトル";
 
-// Vector3構造体の定義
-struct Vector3 {
-    float x;
-    float y;
-    float z;
+struct Matrix4x4 {
+    float m[4][4];
 };
 
-// 加算
-Vector3 Add(const Vector3& v1, const Vector3& v2) {
-    return { v1.x + v2.x, v1.y + v2.y, v1.z + v2.z };
+// X軸回転
+Matrix4x4 MakeRotateXMatrix(float radian) {
+    return {
+        1.0f,        0,         0, 0,
+        0,   std::cos(radian), std::sin(radian), 0,
+        0,  -std::sin(radian), std::cos(radian), 0,
+        0,        0,         0, 1.0f
+    };
 }
 
-// 減算
-Vector3 Subtract(const Vector3& v1, const Vector3& v2) {
-    return { v1.x - v2.x, v1.y - v2.y, v1.z - v2.z };
+// Y軸回転
+Matrix4x4 MakeRotateYMatrix(float radian) {
+    return {
+        std::cos(radian), 0, -std::sin(radian), 0,
+        0,                1,         0,          0,
+        std::sin(radian), 0,  std::cos(radian), 0,
+        0,                0,         0,          1
+    };
 }
 
-// スカラー倍
-Vector3 Multiply(float scalar, const Vector3& v) {
-    return { scalar * v.x, scalar * v.y, scalar * v.z };
+// Z軸回転
+Matrix4x4 MakeRotateZMatrix(float radian) {
+    return {
+        std::cos(radian), std::sin(radian), 0, 0,
+       -std::sin(radian), std::cos(radian), 0, 0,
+        0,                0,                1, 0,
+        0,                0,                0, 1
+    };
 }
 
-// 内積
-float Dot(const Vector3& v1, const Vector3& v2) {
-    return v1.x * v2.x + v1.y * v2.y + v1.z * v2.z;
-}
- 
-// 長さ（ノルム）
-float Length(const Vector3& v) {
-    return sqrtf(v.x * v.x + v.y * v.y + v.z * v.z);
-}
-
-// 正規化
-Vector3 Normalize(const Vector3& v) {
-    float len = Length(v);
-    if (len == 0.0f) return { 0.0f, 0.0f, 0.0f };  // 0除算防止
-    return { v.x / len, v.y / len, v.z / len };
+// 行列の乗算
+Matrix4x4 Multiply(const Matrix4x4& m1, const Matrix4x4& m2) {
+    Matrix4x4 result{};
+    for (int i = 0; i < 4; ++i) {
+        for (int j = 0; j < 4; ++j) {
+            result.m[i][j] = 0;
+            for (int k = 0; k < 4; ++k) {
+                result.m[i][j] += m1.m[i][k] * m2.m[k][j];
+            }
+        }
+    }
+    return result;
 }
 
-// Vector3を画面に表示
-static const int kColumnWidth = 60;
-static const int kRowHeight = 20;
-
-void VectorScreenPrintf(int x, int y, const Vector3& vector, const char* label) {
-    Novice::ScreenPrintf(x, y, "%.02f", vector.x);
-    Novice::ScreenPrintf(x + kColumnWidth, y, "%.02f", vector.y);
-    Novice::ScreenPrintf(x + kColumnWidth * 2, y, "%.02f", vector.z);
-    Novice::ScreenPrintf(x + kColumnWidth * 3, y, "%s", label);
+// 行列を画面に表示
+void MatrixScreenPrintf(int x, int y, const Matrix4x4& matrix, const char* label) {
+    const int kRowHeight = 20;
+    Novice::ScreenPrintf(x, y, "%s", label);
+    for (int row = 0; row < 4; ++row) {
+        for (int col = 0; col < 4; ++col) {
+            Novice::ScreenPrintf(x + col * 60, y + (row + 1) * kRowHeight, "%.2f", matrix.m[row][col]);
+        }
+    }
 }
-
 // Windowsアプリでのエントリーポイント(main関数)
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     // ライブラリの初期化
@@ -62,17 +70,14 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     char keys[256] = { 0 };
     char preKeys[256] = { 0 };
 
-    Vector3 v1{ 1.0f, 3.0f, -5.0f };
-    Vector3 v2{ 4.0f, -1.0f, 2.0f };
-    float k = 4.0f;
+    float x = 0.4f;
+    float y = 1.43f;
+    float z = -0.8f;
 
-    Vector3 resultAdd = Add(v1, v2);
-    Vector3 resultSubtract = Subtract(v1, v2);
-    Vector3 resultMultiply = Multiply(k, v1);
-    float resultDot = Dot(v1, v2);
-    float resultLength = Length(v1);
-    Vector3 resultNormalize = Normalize(v2);
-
+    Matrix4x4 rotateXMatrix = MakeRotateXMatrix(x);
+    Matrix4x4 rotateYMatrix = MakeRotateYMatrix(y);
+    Matrix4x4 rotateZMatrix = MakeRotateZMatrix(z);
+    Matrix4x4 rotateXYZMatrix = Multiply(rotateXMatrix, Multiply(rotateYMatrix, rotateZMatrix));
     // ウィンドウの×ボタンが押されるまでループ
     while (Novice::ProcessMessage() == 0) {
         // フレームの開始
@@ -92,12 +97,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
         ///
         /// ↓描画処理ここから
         /// 
-        VectorScreenPrintf(0, 0, resultAdd, " : Add");
-        VectorScreenPrintf(0, kRowHeight, resultSubtract, " : Subtract");
-        VectorScreenPrintf(0, kRowHeight * 2, resultMultiply, " : Multiply");
-        Novice::ScreenPrintf(0, kRowHeight * 3, "%.02f : Dot", resultDot);
-        Novice::ScreenPrintf(0, kRowHeight * 4, "%.02f : Length", resultLength);
-        VectorScreenPrintf(0, kRowHeight * 5, resultNormalize, " : Normalize");
+        MatrixScreenPrintf(0, 0, rotateXMatrix, "rotateXMatrix");
+        MatrixScreenPrintf(0, 5 * 20, rotateYMatrix, "rotateYMatrix");
+        MatrixScreenPrintf(0, 5 * 2 * 20, rotateZMatrix, "rotateZMatrix");
+        MatrixScreenPrintf(0, 5 * 3 * 20, rotateXYZMatrix, "rotateXYZMatrix");
         ///
         /// ↑描画処理ここまで
         ///
